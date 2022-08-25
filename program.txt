@@ -1,0 +1,16 @@
+add:
+    (A, B) /* variable bind */
+    { A =/= 0 && B =/= 0 } /* precondition expr */
+    / A + B \ /* evaluation */
+    { A == 0 }
+    / B \
+    { B == 0 }
+    / A \
+end
+
+map:
+    ([], F, A)
+    / A \
+    ([H|T], F, A)
+    / map(T, F, [Acc|F(H)]) \
+end
