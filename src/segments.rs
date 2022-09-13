@@ -40,7 +40,7 @@ pub fn prune_clauses(t: Vec<Segment>) -> Vec<Segment> {
     return x;
 }
 
-//TODO, should recursively match terminators until there are no terminators left
+//recursively match terminators until there are no terminators left
 pub fn matched_terminators(t: Vec<crate::tokens::Token>) -> Vec<Segment> {
     return clauses_int(t, Vec::new(), Vec::new());
 }

@@ -15,6 +15,11 @@ map:
     / map(T, F, [Acc|F(H)]) \
 end
 
+derp:
+    ([[]|_], F, A)
+    / A \
+end
+
 map([], F, Acc) -> Acc;
 map([H|T], F, Acc) -> map(T, F, [Acc|F(H)]).
 
