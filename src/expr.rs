@@ -1,16 +1,56 @@
+use std::iter::FromIterator;
+
+use crate::function::{self, Data, ProgramState};
 use crate::segments::{self, Clause, Segment};
 use crate::tokens::{self, Token};
-use crate::eval::{self, ProgramState};
 
 //TODO we will probably need a lot of expr subtypes
 #[derive(Debug, Clone)]
 pub enum Expr {
     Identifier(Vec<char>),
+    Constant(function::Data),
     ADD(Box<Expr>, Box<Expr>),
     Call(Vec<char>, Vec<Expr>),
 }
 
-pub fn eval()
+pub fn eval(c: function::Program, p: function::ProgramState, expr: Expr) -> function::Data {
+    match expr.clone() {
+        Expr::Call(f, args) => {
+            let args1 = args
+                .into_iter()
+                .map(|arg| eval(c.clone(), p.clone(), arg))
+                .collect();
+            return function::call(c, f, args1);
+        }
+        Expr::Constant(c) => {
+            return c;
+        }
+        Expr::Identifier(l) => match p.get(&l) {
+            Some(v) => return v.clone(),
+            _ => {
+                println!("UNBOUND VAR{:#?}{:#?}{:#?}\n", p, expr, l);
+                unimplemented!()
+            }
+        },
+        Expr::ADD(l, r) => {
+            let l1 = eval(c.clone(), p.clone(), *l);
+            let r1 = eval(c.clone(), p.clone(), *r);
+            match (l1.clone(), r1.clone()) {
+                (function::Data::Number(l2), function::Data::Number(r2)) => {
+                    return Data::Number(l2 + r2);
+                }
+                _ => {
+                    println!("NOT NUMBERS{:#?}{:#?}{:#?}{:#?}{:#?}\n", c, p, expr, l1, r1);
+                    unimplemented!()
+                }
+            }
+        }
+        _ => {
+            println!("BAD EXPR{:#?}\n", expr);
+            unimplemented!()
+        }
+    }
+}
 
 pub fn segments_to_expr(s: Vec<segments::Segment>) -> Expr {
     if s.len() == 1 {
@@ -136,8 +176,8 @@ fn segments_to_call_args(seg: Vec<segments::Segment>) -> Vec<Expr> {
                             tokens::Token::Identifier(r),
                         ) => {
                             let mut res = Vec::new();
-                            res.push(Expr::Identifier(l));
-                            res.push(Expr::Identifier(r));
+                            res.push(string_token_to_expr(l));
+                            res.push(string_token_to_expr(r));
                             return res;
                         }
                         _ => {
@@ -157,4 +197,13 @@ fn segments_to_call_args(seg: Vec<segments::Segment>) -> Vec<Expr> {
     }
     println!("args{:#?}\n", seg);
     unimplemented!()
+}
+
+pub fn string_token_to_expr(chars: Vec<char>) -> Expr {
+    let text = String::from_iter(chars.iter());
+    if let Ok(n) = text.parse::<usize>() {
+        return Expr::Constant(function::Data::Number(n));
+    } else {
+        return Expr::Identifier(chars);
+    }
 }

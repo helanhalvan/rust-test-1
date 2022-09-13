@@ -1,5 +1,5 @@
-pub mod eval;
 pub mod expr;
+pub mod function;
 pub mod logic_expr;
 pub mod program;
 pub mod segments;
@@ -18,7 +18,7 @@ fn main() {
     let clauses2 = segments::prune_clauses(clauses.clone());
     let funs = program::to_funs(clauses2.clone());
     println!("9{:#?}\n", (funs));
-    let res = eval::call(funs, "main".chars().collect(), Vec::new());
+    let res = function::call(funs, "main".chars().collect(), Vec::new());
     println!("DONE:{:#?}\n", res);
 }
 

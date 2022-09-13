@@ -1,4 +1,5 @@
-use crate::eval::{self, ProgramState};
+use crate::expr::{self, Expr};
+use crate::function::{self, ProgramState};
 use crate::segments::{self, Clause, Segment};
 use crate::tokens::{self, Token};
 
@@ -7,15 +8,25 @@ pub enum LogicExpr {
     True,
     False,
     Identifier(Vec<char>),
-    Eq(Box<LogicExpr>, Box<LogicExpr>),
-    NEQ(Box<LogicExpr>, Box<LogicExpr>),
     AND(Box<LogicExpr>, Box<LogicExpr>),
+    Eq(Box<expr::Expr>, Box<expr::Expr>),
+    NEQ(Box<expr::Expr>, Box<expr::Expr>),
 }
 
-pub fn eval(p: eval::ProgramState, expr: LogicExpr) -> bool {
+pub fn eval(c: function::Program, p: function::ProgramState, expr: LogicExpr) -> bool {
     match expr {
         LogicExpr::False => false,
         LogicExpr::True => true,
+        LogicExpr::NEQ(l, r) => {
+            let l1 = expr::eval(c.clone(), p.clone(), *l);
+            let r1 = expr::eval(c, p, *r);
+            l1 != r1
+        }
+        LogicExpr::AND(l, r) => {
+            let l1 = eval(c.clone(), p.clone(), *l);
+            let r1 = eval(c, p, *r);
+            l1 == r1
+        }
         _ => {
             println!("logic_expr{:#?}{:#?}\n", p, expr);
             unimplemented!()
@@ -86,16 +97,14 @@ fn tokens_to_logical_expr(tv: Vec<Token>) -> LogicExpr {
         }
         3 => match (tv[0].clone(), tv[1].clone(), tv[2].clone()) {
             (Token::Identifier(l), Token::Eq, Token::Identifier(r)) => {
-                return LogicExpr::Eq(
-                    Box::new(LogicExpr::Identifier(l)),
-                    Box::new(LogicExpr::Identifier(r)),
-                )
+                let l1 = expr::string_token_to_expr(l);
+                let r1 = expr::string_token_to_expr(r);
+                return LogicExpr::Eq(Box::new(l1), Box::new(r1));
             }
             (Token::Identifier(l), Token::NEQ, Token::Identifier(r)) => {
-                return LogicExpr::NEQ(
-                    Box::new(LogicExpr::Identifier(l)),
-                    Box::new(LogicExpr::Identifier(r)),
-                )
+                let l1 = expr::string_token_to_expr(l);
+                let r1 = expr::string_token_to_expr(r);
+                return LogicExpr::NEQ(Box::new(l1), Box::new(r1));
             }
             _ => {
                 println!("3{:#?}\n", tv);
