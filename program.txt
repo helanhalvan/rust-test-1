@@ -8,6 +8,13 @@ add:
     / A \
 end
 
+map:
+    ([], F, A)
+    / A \
+    ([H|T], F, A)
+    / map(T, F, [Acc|F(H)]) \
+end
+
 main: 
     ()
     / add(5, 3) \ 

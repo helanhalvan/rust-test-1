@@ -6,6 +6,7 @@ use crate::{expr, logic_expr, program};
 pub enum Data {
     Number(usize),
     Boolean(bool),
+    Emptylist,
 }
 
 pub type Program = HashMap<Vec<char>, program::Fun>;

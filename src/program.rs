@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    expr, logic_expr,
+    expr, function, logic_expr,
     segments::{self, Clause, Segment},
     tokens,
 };
@@ -22,6 +22,7 @@ pub struct Bind {
 pub enum ArgBind {
     Emptylist,
     ListPattern(Box<ListPattern>),
+    ConstPattern(Box<function::Data>),
     Identifier(Vec<char>),
 }
 
@@ -143,24 +144,32 @@ fn single_seg_to_bind(seg: Segment) -> Vec<ArgBind> {
             head: tokens::Token::LeftB,
             body: i,
             ..
-        }) => match &i[0] {
-            segments::Segment::UnMatched(t) => {
-                if t.len() == 3 && t[1] == tokens::Token::Pipe {
-                    let mut res = Vec::new();
-                    let head = token_to_bind(t[0].clone());
-                    let tail = token_to_bind(t[2].clone());
-                    let b = Box::new(ListPattern { head, tail });
-                    res.push(ArgBind::ListPattern(b));
-                    return res;
+        }) => {
+            if i.len() == 0 {
+                let mut res = Vec::new();
+                res.push(ArgBind::ConstPattern(Box::new(function::Data::Emptylist)));
+                return res;
+            } else {
+                match &i[0] {
+                    segments::Segment::UnMatched(t) => {
+                        if t.len() == 3 && t[1] == tokens::Token::Pipe {
+                            let mut res = Vec::new();
+                            let head = token_to_bind(t[0].clone());
+                            let tail = token_to_bind(t[2].clone());
+                            let b = Box::new(ListPattern { head, tail });
+                            res.push(ArgBind::ListPattern(b));
+                            return res;
+                        }
+                        println!("1{:#?}\n", t);
+                        unimplemented!()
+                    }
+                    seg => {
+                        println!("2{:#?}\n", seg);
+                        unimplemented!()
+                    }
                 }
-                println!("1{:#?}\n", t);
-                unimplemented!()
             }
-            seg => {
-                println!("2{:#?}\n", seg);
-                unimplemented!()
-            }
-        },
+        }
         seg => {
             println!("3{:#?}\n", seg);
             unimplemented!()
