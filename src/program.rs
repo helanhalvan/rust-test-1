@@ -21,15 +21,12 @@ pub struct Bind {
 #[derive(Debug, Clone)]
 pub enum ArgBind {
     Emptylist,
-    ListPattern(Box<ListPattern>),
-    ConstPattern(Box<function::Data>),
+    ListPattern {
+        head: Box<ArgBind>,
+        tail: Box<ArgBind>,
+    },
+    ConstPattern(function::Data),
     Identifier(Vec<char>),
-}
-
-#[derive(Debug, Clone)]
-pub struct ListPattern {
-    head: ArgBind,
-    tail: ArgBind,
 }
 
 #[derive(Debug, Clone)]
@@ -147,7 +144,7 @@ fn single_seg_to_bind(seg: Segment) -> Vec<ArgBind> {
         }) => {
             if i.len() == 0 {
                 let mut res = Vec::new();
-                res.push(ArgBind::ConstPattern(Box::new(function::Data::Emptylist)));
+                res.push(ArgBind::ConstPattern(function::Data::Emptylist));
                 return res;
             } else {
                 match &i[0] {
@@ -156,8 +153,10 @@ fn single_seg_to_bind(seg: Segment) -> Vec<ArgBind> {
                             let mut res = Vec::new();
                             let head = token_to_bind(t[0].clone());
                             let tail = token_to_bind(t[2].clone());
-                            let b = Box::new(ListPattern { head, tail });
-                            res.push(ArgBind::ListPattern(b));
+                            res.push(ArgBind::ListPattern {
+                                head: Box::new(head),
+                                tail: Box::new(tail),
+                            });
                             return res;
                         }
                         println!("1{:#?}\n", t);

@@ -8,14 +8,14 @@ add:
     / A \
 end
 
-map:
+add1:
     ([], F, A)
     / A \
     ([H|T], F, A)
-    / map(T, F, [Acc|F(H)]) \
+    / add1(T, F, [A|add(H,1)]) \
 end
 
 main: 
     ()
-    / add(5, 3) \ 
+    / add1([5, 3], 1, []) \ 
 end

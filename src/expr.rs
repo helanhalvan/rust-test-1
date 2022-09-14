@@ -1,6 +1,7 @@
 use std::iter::FromIterator;
 
 use crate::function::{self, Data, ProgramState};
+use crate::program;
 use crate::segments::{self, Clause, Segment};
 use crate::tokens::{self, Token};
 
@@ -45,6 +46,11 @@ pub fn eval(c: function::Program, p: function::ProgramState, expr: Expr) -> func
                     unimplemented!()
                 }
             }
+        }
+        Expr::ListBuild(h, t) => {
+            let h1 = eval(c.clone(), p.clone(), *h);
+            let t1 = eval(c.clone(), p.clone(), *t);
+            return function::Data::List(Box::new(h1), Box::new(t1));
         }
         _ => {
             println!("BAD EXPR{:#?}\n", expr);
@@ -172,6 +178,12 @@ fn segment_to_expr(seg: segments::Segment) -> Expr {
                     }
                 }
             }
+            (Some(segments::Segment::UnMatched(tv)), None, None, None) => {
+                return tokens_to_list(tv.clone());
+            }
+            (None, None, None, None) => {
+                return Expr::Constant(Data::Emptylist);
+            }
             (a, b, c, d) => {
                 println!("ALONE2{:#?}{:#?}{:#?}{:#?}{:#?}\n", seg, a, b, c, d);
                 unimplemented!()
@@ -182,6 +194,31 @@ fn segment_to_expr(seg: segments::Segment) -> Expr {
             unimplemented!()
         }
     }
+}
+
+// gets tokens *between* the brackets as arg
+fn tokens_to_list(mut tv: Vec<Token>) -> Expr {
+    if tv.len() == 3 {
+        let last = tv.pop().unwrap();
+        let middle = tv.pop().unwrap();
+        let first = tv.pop().unwrap();
+        match (first, middle, last) {
+            (Token::Identifier(f), Token::ArgTerm, Token::Identifier(s)) => {
+                let first = string_token_to_expr(f);
+                let second = string_token_to_expr(s);
+                let empty = Expr::Constant(Data::Emptylist);
+                let tail = Expr::ListBuild(Box::new(second), Box::new(empty));
+                let list = Expr::ListBuild(Box::new(first), Box::new(tail));
+                return list;
+            }
+            a => {
+                println!("tokens_to_list{:#?}{:#?}\n", a, tv);
+                unimplemented!()
+            }
+        }
+    }
+    println!("tokens_to_list{:#?}\n", tv);
+    unimplemented!()
 }
 
 fn tokens_to_expr(tv: Vec<Token>) -> Expr {
@@ -195,7 +232,9 @@ fn tokens_to_expr(tv: Vec<Token>) -> Expr {
         },
         3 => match (tv[0].clone(), tv[1].clone(), tv[2].clone()) {
             (Token::Identifier(l), Token::Add, Token::Identifier(r)) => {
-                return Expr::ADD(Box::new(Expr::Identifier(l)), Box::new(Expr::Identifier(r)))
+                let l1 = string_token_to_expr(l);
+                let r1 = string_token_to_expr(r);
+                return Expr::ADD(Box::new(l1), Box::new(r1));
             }
             _ => {
                 println!("3{:#?}\n", tv);
@@ -209,18 +248,21 @@ fn tokens_to_expr(tv: Vec<Token>) -> Expr {
     }
 }
 
-fn segments_to_call_args(seg: Vec<segments::Segment>) -> Vec<Expr> {
+fn segments_to_call_args(mut seg: Vec<segments::Segment>) -> Vec<Expr> {
     if seg.len() == 0 {
         return Vec::new();
     }
     if seg.len() == 1 {
         match seg[0].clone() {
+            // a, b, c etc
             segments::Segment::UnMatched(tv) => {
                 return tokens_to_call_args(tv);
             }
-            _ => {
-                println!("args{:#?}\n", seg);
-                unimplemented!()
+            // [a, b], [a|b], etc
+            a => {
+                let mut res = Vec::new();
+                res.push(segment_to_expr(a));
+                return res;
             }
         }
     }
@@ -236,8 +278,36 @@ fn segments_to_call_args(seg: Vec<segments::Segment>) -> Vec<Expr> {
                     unimplemented!()
                 }
             }
-            _ => {
-                println!("2args{:#?}\n", seg);
+            a => {
+                println!("2args{:#?}{:#?}\n", seg, a);
+                unimplemented!()
+            }
+        }
+    }
+    // at least 3 arg function
+    if seg.len() >= 3 {
+        let last = seg.pop();
+        let secondlast = seg.pop();
+        match (secondlast, last) {
+            (Some(segments::Segment::UnMatched(mut tv)), Some(tailseg)) => {
+                let lasttoken = tv.pop();
+                match (tv.split_first(), lasttoken) {
+                    (Some((Token::ArgTerm, middletokens)), Some(Token::ArgTerm)) => {
+                        let mut res = segments_to_call_args(seg);
+                        let tailarg = segment_to_expr(tailseg);
+                        let mut middleargs = tokens_to_call_args(middletokens.to_vec());
+                        res.append(&mut middleargs);
+                        res.push(tailarg);
+                        return res;
+                    }
+                    a => {
+                        println!("3 int args{:#?}{:#?}\n", seg, a);
+                        unimplemented!()
+                    }
+                }
+            }
+            a => {
+                println!("3args{:#?}{:#?}\n", seg, a);
                 unimplemented!()
             }
         }
@@ -255,21 +325,28 @@ fn tokens_to_call_args(mut tv: Vec<Token>) -> Vec<Expr> {
                 return res;
             }
             _ => {
-                println!("args{:#?}\n", tv);
+                println!("args 1{:#?}\n", tv);
                 unimplemented!()
             }
         }
     }
     if tv.len() >= 3 {
-        match (tv.pop(), tv.pop()) {
+        let fulltv = tv.clone();
+        let last = tv.pop();
+        let secondlast = tv.pop();
+        match (last, secondlast) {
             (Some(tokens::Token::Identifier(l)), Some(tokens::Token::ArgTerm)) => {
                 let mut res = tokens_to_call_args(tv);
                 res.push(string_token_to_expr(l));
                 return res;
             }
-            _ => {
-                println!("args{:#?}\n", tv);
-                unimplemented!()
+            // cases like add(1+1) where call-args
+            // are not single tokens
+            // TODO handle add(a, 1+1, a)
+            _a => {
+                let mut res = Vec::new();
+                res.push(tokens_to_expr(fulltv));
+                return res;
             }
         }
     }

@@ -16,6 +16,7 @@ fn main() {
     // Groups of tokes for expressing a single case within the code base
     let clauses = segments::matched_terminators(tokens.clone());
     let clauses2 = segments::prune_clauses(clauses.clone());
+    println!("8{:#?}\n", (clauses2));
     let funs = program::to_funs(clauses2.clone());
     println!("9{:#?}\n", (funs));
     let res = function::call(funs, "main".chars().collect(), Vec::new());
