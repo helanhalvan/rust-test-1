@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
 use crate::{
-    expr, function, logic_expr,
+    eval, expr, logic_expr,
     segments::{self, Clause, Segment},
     tokens,
 };
 
 #[derive(Debug, Clone)]
 pub struct Fun {
-    name: Vec<char>,
+    pub name: Vec<char>,
     pub binds: Vec<Bind>,
 }
 
@@ -25,7 +25,7 @@ pub enum ArgBind {
         head: Box<ArgBind>,
         tail: Box<ArgBind>,
     },
-    ConstPattern(function::Data),
+    ConstPattern(eval::Data),
     Identifier(Vec<char>),
 }
 
@@ -144,7 +144,7 @@ fn single_seg_to_bind(seg: Segment) -> Vec<ArgBind> {
         }) => {
             if i.len() == 0 {
                 let mut res = Vec::new();
-                res.push(ArgBind::ConstPattern(function::Data::Emptylist));
+                res.push(ArgBind::ConstPattern(eval::Data::Emptylist));
                 return res;
             } else {
                 match &i[0] {

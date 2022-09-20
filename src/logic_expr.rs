@@ -1,5 +1,5 @@
+use crate::eval::{self, ProgramState};
 use crate::expr::{self, Expr};
-use crate::function::{self, ProgramState};
 use crate::segments::{self, Clause, Segment};
 use crate::tokens::{self, Token};
 
@@ -13,7 +13,7 @@ pub enum LogicExpr {
     NEQ(Box<expr::Expr>, Box<expr::Expr>),
 }
 
-pub fn eval(c: function::Program, p: function::ProgramState, expr: LogicExpr) -> bool {
+pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
     match expr {
         LogicExpr::False => false,
         LogicExpr::True => true,

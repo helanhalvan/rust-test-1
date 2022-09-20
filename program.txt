@@ -9,13 +9,18 @@ add:
 end
 
 add1:
+    (A)
+    / add(A, 1) \
+end
+
+map:
     ([], F, A)
     / A \
-    ([H|T], F, A)
-    / add1(T, F, [A|add(H,1)]) \
+    ([H|T], F, Acc)
+    / map(T, F, [Acc|F(H)]) \
 end
 
 main: 
     ()
-    / add1([5, 3], 1, []) \ 
+    / map([5, 3], add1, []) \ 
 end

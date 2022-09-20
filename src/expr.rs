@@ -1,36 +1,31 @@
 use std::iter::FromIterator;
 
-use crate::function::{self, Data, ProgramState};
-use crate::program;
+use crate::eval::{self, Data, ProgramState};
 use crate::segments::{self, Clause, Segment};
 use crate::tokens::{self, Token};
+use crate::{function, program};
 
 //TODO we will probably need a lot of expr subtypes
 #[derive(Debug, Clone)]
 pub enum Expr {
     Identifier(Vec<char>),
-    Constant(function::Data),
+    Constant(eval::Data),
     ADD(Box<Expr>, Box<Expr>),
     Call(Vec<char>, Vec<Expr>),
+    DynamicCall(Vec<char>, Vec<Expr>),
     ListBuild(Box<Expr>, Box<Expr>),
 }
 
-pub fn eval(c: function::Program, p: function::ProgramState, expr: Expr) -> function::Data {
+pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
     match expr.clone() {
-        Expr::Call(f, args) => {
-            let args1 = args
-                .into_iter()
-                .map(|arg| eval(c.clone(), p.clone(), arg))
-                .collect();
-            return function::call(c, f, args1);
-        }
+        Expr::Call(f, args) => eval_and_call(c, f, args, p),
         Expr::Constant(c) => {
             return c;
         }
         Expr::Identifier(l) => match p.get(&l) {
             Some(v) => return v.clone(),
             _ => {
-                println!("UNBOUND VAR{:#?}{:#?}{:#?}\n", p, expr, l);
+                println!("UNBOUND VAR{:#?}\n{:#?}\n{:#?}\n", p, expr, l);
                 unimplemented!()
             }
         },
@@ -38,7 +33,7 @@ pub fn eval(c: function::Program, p: function::ProgramState, expr: Expr) -> func
             let l1 = eval(c.clone(), p.clone(), *l);
             let r1 = eval(c.clone(), p.clone(), *r);
             match (l1.clone(), r1.clone()) {
-                (function::Data::Number(l2), function::Data::Number(r2)) => {
+                (eval::Data::Number(l2), eval::Data::Number(r2)) => {
                     return Data::Number(l2 + r2);
                 }
                 _ => {
@@ -50,13 +45,33 @@ pub fn eval(c: function::Program, p: function::ProgramState, expr: Expr) -> func
         Expr::ListBuild(h, t) => {
             let h1 = eval(c.clone(), p.clone(), *h);
             let t1 = eval(c.clone(), p.clone(), *t);
-            return function::Data::List(Box::new(h1), Box::new(t1));
+            return eval::Data::List(Box::new(h1), Box::new(t1));
         }
+        Expr::DynamicCall(name, args) => match p.get(&name) {
+            Some(eval::Data::FunctionPointer(fname)) => eval_and_call(c, fname.clone(), args, p),
+            _ => {
+                println!("NO FNAME{:#?}\n", expr);
+                unimplemented!()
+            }
+        },
         _ => {
             println!("BAD EXPR{:#?}\n", expr);
             unimplemented!()
         }
     }
+}
+
+fn eval_and_call(
+    c: eval::Program,
+    f: function::FunctionName,
+    args: Vec<Expr>,
+    p: eval::ProgramState,
+) -> eval::Data {
+    let args1 = args
+        .into_iter()
+        .map(|arg| eval(c.clone(), p.clone(), arg))
+        .collect();
+    return eval::call(c, f, args1);
 }
 
 pub fn segments_to_expr(s: Vec<segments::Segment>) -> Expr {
@@ -357,7 +372,7 @@ fn tokens_to_call_args(mut tv: Vec<Token>) -> Vec<Expr> {
 pub fn string_token_to_expr(chars: Vec<char>) -> Expr {
     let text = String::from_iter(chars.iter());
     if let Ok(n) = text.parse::<usize>() {
-        return Expr::Constant(function::Data::Number(n));
+        return Expr::Constant(eval::Data::Number(n));
     } else {
         return Expr::Identifier(chars);
     }
