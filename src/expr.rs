@@ -1,9 +1,12 @@
 use std::iter::FromIterator;
 
 use crate::eval::{self, Data, ProgramState};
+use crate::logic_expr::{self, LogicExpr};
+use crate::numeric_expr::NumericExpr;
+use crate::program::ArgBind;
 use crate::segments::{self, Clause, Segment};
 use crate::tokens::{self, Token};
-use crate::{function, program};
+use crate::{function, numeric_expr, program};
 
 //TODO we will probably need a lot of expr subtypes
 #[derive(Debug, Clone)]
@@ -14,6 +17,13 @@ pub enum Expr {
     Call(Vec<char>, Vec<Expr>),
     DynamicCall(Vec<char>, Vec<Expr>),
     ListBuild(Box<Expr>, Box<Expr>),
+    NumericExpr(numeric_expr::NumericExpr),
+    LogicExpr(LogicExpr),
+    Assign {
+        pattern: Box<ArgBind>,
+        arg: Box<Expr>,
+        rest: Box<Expr>,
+    },
 }
 
 pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
@@ -29,19 +39,6 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
                 unimplemented!()
             }
         },
-        Expr::ADD(l, r) => {
-            let l1 = eval(c.clone(), p.clone(), *l);
-            let r1 = eval(c.clone(), p.clone(), *r);
-            match (l1.clone(), r1.clone()) {
-                (eval::Data::Number(l2), eval::Data::Number(r2)) => {
-                    return Data::Number(l2 + r2);
-                }
-                _ => {
-                    println!("NOT NUMBERS{:#?}{:#?}{:#?}{:#?}{:#?}\n", c, p, expr, l1, r1);
-                    unimplemented!()
-                }
-            }
-        }
         Expr::ListBuild(h, t) => {
             let h1 = eval(c.clone(), p.clone(), *h);
             let t1 = eval(c.clone(), p.clone(), *t);
@@ -54,6 +51,22 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
                 unimplemented!()
             }
         },
+        Expr::NumericExpr(nexpr) => return numeric_expr::eval(c, p, nexpr),
+        Expr::LogicExpr(lexpr) => return Data::Boolean(logic_expr::eval(c, p, lexpr)),
+        Expr::Assign {
+            pattern: bind,
+            arg,
+            rest,
+        } => {
+            let vals = vec![eval(c.clone(), p.clone(), *arg)];
+            let binds = vec![*bind];
+            if let Some(p1) = eval::try_bind_with_state(p.clone(), binds, vals) {
+                return eval(c, p1, *rest);
+            } else {
+                println!("Bind Failed{:#?}{:#?}\n", expr, p);
+                unimplemented!()
+            }
+        }
         _ => {
             println!("BAD EXPR{:#?}\n", expr);
             unimplemented!()
@@ -74,7 +87,7 @@ fn eval_and_call(
     return eval::call(c, f, args1);
 }
 
-pub fn segments_to_expr(s: Vec<segments::Segment>) -> Expr {
+pub fn segments_to_expr(mut s: Vec<segments::Segment>) -> Expr {
     if s.len() == 1 {
         return segment_to_expr(s[0].clone());
     }
@@ -104,6 +117,38 @@ pub fn segments_to_expr(s: Vec<segments::Segment>) -> Expr {
             _ => {
                 println!("{:#?}\n", s);
                 unimplemented!()
+            }
+        }
+    }
+    if s.len() > 2 {
+        match (s[0].clone(), s[1].clone()) {
+            (
+                Segment::UnMatched(lefttv),
+                Segment::Clause(Clause {
+                    head: tokens::Token::LeftP,
+                    body,
+                    ..
+                }),
+            ) => {
+                if lefttv.len() == 3 {
+                    match (lefttv[0].clone(), lefttv[1].clone(), lefttv[2].clone()) {
+                        (Token::Identifier(li), Token::Assign, Token::Identifier(ri)) => {
+                            let args = segments_to_call_args(body);
+                            let call = Expr::Call(ri, args);
+                            return Expr::Assign {
+                                pattern: Box::new(program::ArgBind::Identifier(li)),
+                                arg: Box::new(call),
+                                rest: Box::new(segments_to_expr(s[2..s.len()].to_vec())),
+                            };
+                        }
+                        bad => {
+                            println!("BAD LONG SEGMENT{:#?}{:#?}\n", s, bad);
+                        }
+                    }
+                }
+            }
+            bad => {
+                println!("BAD LONG SEGMENT{:#?}{:#?}\n", s, bad);
             }
         }
     }
@@ -148,7 +193,7 @@ pub fn segments_to_expr(s: Vec<segments::Segment>) -> Expr {
     // TODO handle longer logic expr like
     // a && b && c && d
     // not sure what () rules will be needed
-    println!("{:#?}\n", s);
+    println!("SEG LEN CONFUSION{:#?}{:#?}\n", s, s.len());
     unimplemented!()
 }
 
@@ -157,7 +202,7 @@ fn segment_to_expr(seg: segments::Segment) -> Expr {
         segments::Segment::UnMatched(tv) => return tokens_to_expr(tv.clone()),
         segments::Segment::Clause(Clause {
             head: Token::LeftB,
-            mut body,
+            body,
             ..
         }) => match (body.get(0), body.get(1), body.get(2), body.get(3)) {
             (Some(segments::Segment::UnMatched(tv)), Some(tailseg), None, None) => {
@@ -226,6 +271,12 @@ fn tokens_to_list(mut tv: Vec<Token>) -> Expr {
                 let list = Expr::ListBuild(Box::new(first), Box::new(tail));
                 return list;
             }
+            (Token::Identifier(f), Token::Pipe, Token::Identifier(s)) => {
+                let first = string_token_to_expr(f);
+                let second = string_token_to_expr(s);
+                let list = Expr::ListBuild(Box::new(first), Box::new(second));
+                return list;
+            }
             a => {
                 println!("tokens_to_list{:#?}{:#?}\n", a, tv);
                 unimplemented!()
@@ -239,7 +290,7 @@ fn tokens_to_list(mut tv: Vec<Token>) -> Expr {
 fn tokens_to_expr(tv: Vec<Token>) -> Expr {
     match tv.len() {
         1 => match tv[0].clone() {
-            Token::Identifier(l) => return Expr::Identifier(l),
+            Token::Identifier(l) => return string_token_to_expr(l),
             _ => {
                 println!("1{:#?}\n", tv);
                 unimplemented!()
@@ -250,6 +301,21 @@ fn tokens_to_expr(tv: Vec<Token>) -> Expr {
                 let l1 = string_token_to_expr(l);
                 let r1 = string_token_to_expr(r);
                 return Expr::ADD(Box::new(l1), Box::new(r1));
+            }
+            (Token::Identifier(l), Token::Eq, Token::Identifier(r)) => {
+                let l1 = string_token_to_expr(l);
+                let r1 = string_token_to_expr(r);
+                return Expr::LogicExpr(LogicExpr::EQ(Box::new(l1), Box::new(r1)));
+            }
+            (Token::Identifier(l), Token::MUL, Token::Identifier(r)) => {
+                let l1 = string_token_to_num_expr(l);
+                let r1 = string_token_to_num_expr(r);
+                return Expr::NumericExpr(NumericExpr::MUL(Box::new(l1), Box::new(r1)));
+            }
+            (Token::Identifier(l), Token::SUB, Token::Identifier(r)) => {
+                let l1 = string_token_to_num_expr(l);
+                let r1 = string_token_to_num_expr(r);
+                return Expr::NumericExpr(NumericExpr::SUB(Box::new(l1), Box::new(r1)));
             }
             _ => {
                 println!("3{:#?}\n", tv);
@@ -371,9 +437,33 @@ fn tokens_to_call_args(mut tv: Vec<Token>) -> Vec<Expr> {
 
 pub fn string_token_to_expr(chars: Vec<char>) -> Expr {
     let text = String::from_iter(chars.iter());
-    if let Ok(n) = text.parse::<usize>() {
+    if let Ok(n) = text.parse::<u64>() {
         return Expr::Constant(eval::Data::Number(n));
+    } else if let Ok(n) = text.parse::<bool>() {
+        return Expr::Constant(eval::Data::Boolean(n));
     } else {
         return Expr::Identifier(chars);
+    }
+}
+
+pub fn string_token_to_num_expr(chars: Vec<char>) -> NumericExpr {
+    let text = String::from_iter(chars.iter());
+    if let Ok(n) = text.parse::<u64>() {
+        return NumericExpr::Int(n);
+    } else {
+        return NumericExpr::Identifier(chars);
+    }
+}
+
+pub fn string_token_to_logic_expr(chars: Vec<char>) -> LogicExpr {
+    let text = String::from_iter(chars.iter());
+    if let Ok(n) = text.parse::<bool>() {
+        if n {
+            return LogicExpr::True;
+        } else {
+            return LogicExpr::False;
+        };
+    } else {
+        return LogicExpr::Identifier(chars);
     }
 }

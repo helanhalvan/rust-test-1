@@ -9,7 +9,7 @@ pub enum LogicExpr {
     False,
     Identifier(Vec<char>),
     AND(Box<LogicExpr>, Box<LogicExpr>),
-    Eq(Box<expr::Expr>, Box<expr::Expr>),
+    EQ(Box<expr::Expr>, Box<expr::Expr>),
     NEQ(Box<expr::Expr>, Box<expr::Expr>),
 }
 
@@ -22,10 +22,15 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
             let r1 = expr::eval(c, p, *r);
             l1 != r1
         }
+        LogicExpr::EQ(l, r) => {
+            let l1 = expr::eval(c.clone(), p.clone(), *l);
+            let r1 = expr::eval(c, p, *r);
+            l1 == r1
+        }
         LogicExpr::AND(l, r) => {
             let l1 = eval(c.clone(), p.clone(), *l);
             let r1 = eval(c, p, *r);
-            l1 == r1
+            l1 && r1
         }
         _ => {
             println!("logic_expr{:#?}{:#?}\n", p, expr);
@@ -40,6 +45,38 @@ pub fn segments_to_logical_expr(s: Vec<segments::Segment>) -> LogicExpr {
             segments::Segment::UnMatched(tv) => return tokens_to_logical_expr(tv.clone()),
             _ => {
                 println!("ALONE{:#?}\n", s[0]);
+                unimplemented!()
+            }
+        }
+    }
+    if s.len() == 2 {
+        match (s[0].clone(), s[1].clone()) {
+            (
+                segments::Segment::Clause(Clause {
+                    head: Token::LeftP,
+                    body: leftbody,
+                    ..
+                }),
+                segments::Segment::UnMatched(list),
+            ) => {
+                if list.len() == 2 {
+                    match (list[0].clone(), list[1].clone()) {
+                        (Token::Eq, Token::Identifier(chars)) => {
+                            let left_expr = expr::segments_to_expr(leftbody);
+                            let right_expr = expr::string_token_to_expr(chars);
+                            return LogicExpr::EQ(Box::new(left_expr), Box::new(right_expr));
+                        }
+                        _ => {
+                            println!("2 SEG{:#?}\n", s);
+                            unimplemented!()
+                        }
+                    }
+                }
+                println!("2 SEG{:#?}\n", s);
+                unimplemented!()
+            }
+            _ => {
+                println!("2 SEG{:#?}\n", s);
                 unimplemented!()
             }
         }
@@ -99,7 +136,7 @@ fn tokens_to_logical_expr(tv: Vec<Token>) -> LogicExpr {
             (Token::Identifier(l), Token::Eq, Token::Identifier(r)) => {
                 let l1 = expr::string_token_to_expr(l);
                 let r1 = expr::string_token_to_expr(r);
-                return LogicExpr::Eq(Box::new(l1), Box::new(r1));
+                return LogicExpr::EQ(Box::new(l1), Box::new(r1));
             }
             (Token::Identifier(l), Token::NEQ, Token::Identifier(r)) => {
                 let l1 = expr::string_token_to_expr(l);

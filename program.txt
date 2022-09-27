@@ -1,26 +1,20 @@
-add:
-    (A, B) /* variable bind */
-    { (A =/= 0) && (B =/= 0) } /* precondition expr */
-    / A + B \ /* evaluation */
-    { A == 0 }
-    / B \
-    { B == 0 }
-    / A \
+logicfun:
+    (A, B)
+    / A == B \
 end
 
-add1:
-    (A)
-    / add(A, 1) \
-end
-
-map:
-    ([], F, A)
-    / A \
-    ([H|T], F, Acc)
-    / map(T, F, [Acc|F(H)]) \
+mathfun:
+    (A, B)
+    { (A - B) == 5 }
+    / 0 \
+    / A * B \
 end
 
 main: 
     ()
-    / map([5, 3], add1, []) \ 
+    / 
+    A = mathfun(10, 5)
+    B = logicfun(true, false)
+    [A|B]
+    \ 
 end

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::{borrow::Borrow, collections::HashSet};
 
 use crate::{
     eval::{self, Program},
@@ -73,7 +73,6 @@ fn resolve_lambdas_expr(function_names: FunctionNames, e: Expr) -> Expr {
             }
         }
         Expr::Identifier(id) => {
-            println!("IDS{:#?}\n", id);
             if function_names.contains(&id) {
                 return Expr::Constant(eval::Data::FunctionPointer(id));
             } else {
@@ -89,6 +88,20 @@ fn resolve_lambdas_expr(function_names: FunctionNames, e: Expr) -> Expr {
         Expr::Constant(_) => {
             return org;
         }
+        Expr::LogicExpr(l) => {
+            return Expr::LogicExpr(resolve_lambdas_lexpr(function_names, l));
+        }
+        Expr::NumericExpr(n) => {
+            // TODO handle functions in numeric expr
+            return org;
+        }
+        Expr::Assign { arg, rest, pattern } => {
+            return Expr::Assign {
+                arg: Box::new(resolve_lambdas_expr(function_names.clone(), *arg)),
+                rest: Box::new(resolve_lambdas_expr(function_names, *rest)),
+                pattern: pattern,
+            };
+        }
         _ => {
             println!("{:#?}\n", e);
             unimplemented!()
@@ -97,5 +110,28 @@ fn resolve_lambdas_expr(function_names: FunctionNames, e: Expr) -> Expr {
 }
 
 fn resolve_lambdas_lexpr(function_names: FunctionNames, e: LogicExpr) -> LogicExpr {
-    return e;
+    let org = e.clone();
+    match e {
+        LogicExpr::True => org,
+        LogicExpr::False => org,
+        LogicExpr::AND(l, r) => {
+            let l1 = resolve_lambdas_lexpr(function_names.clone(), *l);
+            let r1 = resolve_lambdas_lexpr(function_names, *r);
+            return LogicExpr::AND(Box::new(l1), Box::new(r1));
+        }
+        LogicExpr::EQ(l, r) => {
+            let l1 = resolve_lambdas_expr(function_names.clone(), *l);
+            let r1 = resolve_lambdas_expr(function_names, *r);
+            return LogicExpr::EQ(Box::new(l1), Box::new(r1));
+        }
+        LogicExpr::NEQ(l, r) => {
+            let l1 = resolve_lambdas_expr(function_names.clone(), *l);
+            let r1 = resolve_lambdas_expr(function_names, *r);
+            return LogicExpr::NEQ(Box::new(l1), Box::new(r1));
+        }
+        _ => {
+            println!("{:#?}\n", e);
+            unimplemented!()
+        }
+    }
 }

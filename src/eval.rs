@@ -4,7 +4,7 @@ use crate::{expr, function::FunctionName, logic_expr, program};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Data {
-    Number(usize),
+    Number(u64),
     Boolean(bool),
     Emptylist,
     List(Box<Data>, Box<Data>),
@@ -65,11 +65,11 @@ fn bind_args(binds: Vec<program::Bind>, args: Vec<Data>) -> (ProgramState, Vec<p
 }
 
 fn try_bind(pattern: Vec<program::ArgBind>, args: Vec<Data>) -> Option<ProgramState> {
-    return try_bind_int(HashMap::new(), pattern, args);
+    return try_bind_with_state(HashMap::new(), pattern, args);
 }
 
-fn try_bind_int(
-    mut state: ProgramState,
+pub fn try_bind_with_state(
+    state: ProgramState,
     pattern: Vec<program::ArgBind>,
     args: Vec<Data>,
 ) -> Option<ProgramState> {
@@ -87,7 +87,7 @@ fn try_bind_int(
             if let Some(state1) = try_bind_single(state, ph1, ah1) {
                 let pt1 = pt.to_vec();
                 let at1 = at.to_vec();
-                return try_bind_int(state1, pt1, at1);
+                return try_bind_with_state(state1, pt1, at1);
             } else {
                 return None;
             }

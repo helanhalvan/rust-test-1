@@ -27,6 +27,9 @@ pub enum Token {
     Pipe,
     AND,
     END,
+    MUL,
+    SUB,
+    Assign,
 }
 // mapping left pair -> right pair
 // ( -> )
@@ -94,6 +97,9 @@ fn single_char_to_token(char: char) -> Option<(Token, u16)> {
         '/' => Token::CodeStart,
         '\\' => Token::CodeEnd,
         ':' => Token::FunStart,
+        '*' => Token::MUL,
+        '-' => Token::SUB,
+        '=' => Token::Assign,
         _ => {
             return None;
         }

@@ -34,7 +34,7 @@ pub fn prune_clauses(t: Vec<Segment>) -> Vec<Segment> {
                 tail: t.clone(),
                 body: prune_clauses(b.clone()),
             }),
-            A => A.clone(),
+            a => a.clone(),
         })
         .collect();
     return x;

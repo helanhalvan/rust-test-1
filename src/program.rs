@@ -116,13 +116,13 @@ fn bind_segment_to_bindpattern(s: Vec<Segment>) -> Vec<ArgBind> {
                     res.append(&mut more);
                     return res;
                 }
-                A => {
-                    println!("{:#?}\n", A);
+                a => {
+                    println!("{:#?}\n", a);
                     unimplemented!()
                 }
             },
-            A => {
-                println!("{:#?}\n", A);
+            a => {
+                println!("{:#?}\n", a);
                 unimplemented!()
             }
         }
@@ -243,7 +243,10 @@ fn segments_to_filters(s: Vec<segments::Segment>) -> (Vec<Filter>, Vec<Segment>)
                 allfilters.insert(0, cfilter);
                 return (allfilters, Vec::new());
             }
-            _ => unimplemented!(),
+            _ => {
+                println!("1{:#?}\n", s);
+                unimplemented!()
+            }
         }
     }
     match (s[0].clone(), s[1].clone()) {
