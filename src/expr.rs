@@ -2,7 +2,7 @@ use std::iter::FromIterator;
 
 use crate::eval::{self, Data, ProgramState};
 use crate::logic_expr::{self, LogicExpr};
-use crate::numeric_expr::NumericExpr;
+use crate::numeric_expr::{NumOp, NumericData, NumericExpr};
 use crate::program::ArgBind;
 use crate::segments::{self, Clause, Segment};
 use crate::tokens::{self, Token};
@@ -51,7 +51,10 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
                 unimplemented!()
             }
         },
-        Expr::NumericExpr(nexpr) => return numeric_expr::eval(c, p, nexpr),
+        Expr::NumericExpr(nexpr) => {
+            println!("NEXPR{:#?}\n", nexpr);
+            return numeric_expr::eval(c, p, nexpr);
+        }
         Expr::LogicExpr(lexpr) => return Data::Boolean(logic_expr::eval(c, p, lexpr)),
         Expr::Assign {
             pattern: bind,
@@ -120,6 +123,7 @@ pub fn segments_to_expr(mut s: Vec<segments::Segment>) -> Expr {
             }
         }
     }
+    // assignment expression handling, can fail
     if s.len() > 2 {
         match (s[0].clone(), s[1].clone()) {
             (
@@ -298,9 +302,13 @@ fn tokens_to_expr(tv: Vec<Token>) -> Expr {
         },
         3 => match (tv[0].clone(), tv[1].clone(), tv[2].clone()) {
             (Token::Identifier(l), Token::Add, Token::Identifier(r)) => {
-                let l1 = string_token_to_expr(l);
-                let r1 = string_token_to_expr(r);
-                return Expr::ADD(Box::new(l1), Box::new(r1));
+                let l1 = string_token_to_num_expr(l);
+                let r1 = string_token_to_num_expr(r);
+                return Expr::NumericExpr(NumericExpr::Operator {
+                    op: NumOp::ADD,
+                    left: Box::new(l1),
+                    right: Box::new(r1),
+                });
             }
             (Token::Identifier(l), Token::Eq, Token::Identifier(r)) => {
                 let l1 = string_token_to_expr(l);
@@ -310,12 +318,20 @@ fn tokens_to_expr(tv: Vec<Token>) -> Expr {
             (Token::Identifier(l), Token::MUL, Token::Identifier(r)) => {
                 let l1 = string_token_to_num_expr(l);
                 let r1 = string_token_to_num_expr(r);
-                return Expr::NumericExpr(NumericExpr::MUL(Box::new(l1), Box::new(r1)));
+                return Expr::NumericExpr(NumericExpr::Operator {
+                    op: NumOp::MUL,
+                    left: Box::new(l1),
+                    right: Box::new(r1),
+                });
             }
             (Token::Identifier(l), Token::SUB, Token::Identifier(r)) => {
                 let l1 = string_token_to_num_expr(l);
                 let r1 = string_token_to_num_expr(r);
-                return Expr::NumericExpr(NumericExpr::SUB(Box::new(l1), Box::new(r1)));
+                return Expr::NumericExpr(NumericExpr::Operator {
+                    op: NumOp::SUB,
+                    left: Box::new(l1),
+                    right: Box::new(r1),
+                });
             }
             _ => {
                 println!("3{:#?}\n", tv);
@@ -437,8 +453,8 @@ fn tokens_to_call_args(mut tv: Vec<Token>) -> Vec<Expr> {
 
 pub fn string_token_to_expr(chars: Vec<char>) -> Expr {
     let text = String::from_iter(chars.iter());
-    if let Ok(n) = text.parse::<u64>() {
-        return Expr::Constant(eval::Data::Number(n));
+    if let Ok(n) = text.parse::<i64>() {
+        return Expr::Constant(eval::Data::Number(NumericData::Int(n)));
     } else if let Ok(n) = text.parse::<bool>() {
         return Expr::Constant(eval::Data::Boolean(n));
     } else {
@@ -448,8 +464,8 @@ pub fn string_token_to_expr(chars: Vec<char>) -> Expr {
 
 pub fn string_token_to_num_expr(chars: Vec<char>) -> NumericExpr {
     let text = String::from_iter(chars.iter());
-    if let Ok(n) = text.parse::<u64>() {
-        return NumericExpr::Int(n);
+    if let Ok(n) = text.parse::<i64>() {
+        return NumericExpr::Const(NumericData::Int(n));
     } else {
         return NumericExpr::Identifier(chars);
     }

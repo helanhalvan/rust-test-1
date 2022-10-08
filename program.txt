@@ -7,13 +7,25 @@ mathfun:
     (A, B)
     { (A - B) == 5 }
     / 0 \
+    / 1 + mul(A, B) \
+end
+
+mul:
+    (A, B)
     / A * B \
+end
+
+if: 
+    (Cond, A, B)
+    { Cond() }
+    / A() \
+    / B() \
 end
 
 main: 
     ()
     / 
-    A = mathfun(10, 5)
+    A = mathfun(2, 5)
     B = logicfun(true, false)
     [A|B]
     \ 

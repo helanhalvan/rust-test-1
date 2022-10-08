@@ -1,10 +1,10 @@
 use std::{borrow::Borrow, collections::HashMap};
 
-use crate::{expr, function::FunctionName, logic_expr, program};
+use crate::{expr, function::FunctionName, logic_expr, numeric_expr, program};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Data {
-    Number(u64),
+    Number(numeric_expr::NumericData),
     Boolean(bool),
     Emptylist,
     List(Box<Data>, Box<Data>),
