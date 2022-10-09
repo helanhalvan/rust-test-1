@@ -49,23 +49,22 @@ pub fn eval_int(c: eval::Program, p: eval::ProgramState, expr: NumericExpr) -> N
         NumericExpr::Const(c) => {
             return c;
         }
-        NumericExpr::Identifier(l) => match p.get(&l) {
-            Some(eval::Data::Number(v)) => return v.clone(),
-            bad => {
-                println!("UNBOUND VAR{:#?}\n{:#?}\n{:#?}\n{:#?}\n", p, expr, l, bad);
+        NumericExpr::Identifier(name) => match expr::var_lookup(name, p) {
+            eval::Data::Number(a) => a,
+            a => {
+                println!("BAD NEXPR{:#?}\n", a);
                 unimplemented!()
             }
         },
         NumericExpr::OrderedOperator { op, left, right } => {
-            let l1 = eval_int(c.clone(), p.clone(), *left);
-            let r1 = eval_int(c.clone(), p.clone(), *right);
-            match (op, l1.clone(), r1.clone()) {
-                (OrderedNumOp::SUB, NumericData::Int(l2), NumericData::Int(r2)) => {
-                    return NumericData::Int(l2 - r2);
+            let NumericData::Int(l1) = eval_int(c.clone(), p.clone(), *left);
+            let NumericData::Int(r1) = eval_int(c.clone(), p.clone(), *right);
+            match op {
+                OrderedNumOp::SUB => {
+                    return NumericData::Int(l1 - r1);
                 }
-                _ => {
-                    println!("NOT NUMBERS{:#?}{:#?}{:#?}{:#?}{:#?}\n", c, p, expr, l1, r1);
-                    unimplemented!()
+                OrderedNumOp::DIV => {
+                    return NumericData::Int(l1 / r1);
                 }
             }
         }
@@ -90,10 +89,13 @@ pub fn eval_int(c: eval::Program, p: eval::ProgramState, expr: NumericExpr) -> N
                 unimplemented!()
             }
         },
-        _ => {
-            println!("BAD NEXPR{:#?}\n", expr);
-            unimplemented!()
-        }
+        NumericExpr::DynamicCall(f, args) => match expr::dynamic_eval_and_call(c, f, args, p) {
+            eval::Data::Number(a) => a,
+            a => {
+                println!("BAD NEXPR{:#?}\n", a);
+                unimplemented!()
+            }
+        },
     }
 }
 

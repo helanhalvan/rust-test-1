@@ -30,25 +30,13 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
         Expr::Constant(c) => {
             return c;
         }
-        Expr::Identifier(l) => match p.get(&l) {
-            Some(v) => return v.clone(),
-            _ => {
-                println!("UNBOUND VAR{:#?}\n{:#?}\n{:#?}\n", p, expr, l);
-                unimplemented!()
-            }
-        },
+        Expr::Identifier(l) => var_lookup(l, p),
         Expr::ListBuild(h, t) => {
             let h1 = eval(c.clone(), p.clone(), *h);
             let t1 = eval(c.clone(), p.clone(), *t);
             return eval::Data::List(Box::new(h1), Box::new(t1));
         }
-        Expr::DynamicCall(name, args) => match p.get(&name) {
-            Some(eval::Data::FunctionPointer(fname)) => eval_and_call(c, fname.clone(), args, p),
-            _ => {
-                println!("NO FNAME{:#?}\n", expr);
-                unimplemented!()
-            }
-        },
+        Expr::DynamicCall(name, args) => dynamic_eval_and_call(c, name, args, p),
         Expr::NumericExpr(nexpr) => {
             println!("NEXPR{:#?}\n", nexpr);
             return numeric_expr::eval(c, p, nexpr);
@@ -68,8 +56,29 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
                 unimplemented!()
             }
         }
+    }
+}
+
+pub fn var_lookup(name: Vec<char>, p: eval::ProgramState) -> eval::Data {
+    match p.get(&name) {
+        Some(v) => return v.clone(),
         _ => {
-            println!("BAD EXPR{:#?}\n", expr);
+            println!("UNBOUND VAR{:#?}\n{:#?}\n", p, name);
+            unimplemented!()
+        }
+    }
+}
+
+pub fn dynamic_eval_and_call(
+    c: eval::Program,
+    name: Vec<char>,
+    args: Vec<Expr>,
+    p: eval::ProgramState,
+) -> eval::Data {
+    match p.get(&name) {
+        Some(eval::Data::FunctionPointer(fname)) => eval_and_call(c, fname.clone(), args, p),
+        _ => {
+            println!("NO FNAME{:#?}\n", name);
             unimplemented!()
         }
     }

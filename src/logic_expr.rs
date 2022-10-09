@@ -40,10 +40,27 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
                 .all(|x| x);
             res
         }
-        _ => {
-            println!("logic_expr{:#?}{:#?}\n", p, expr);
-            unimplemented!()
-        }
+        LogicExpr::Call(f, args) => match expr::eval_and_call(c, f, args, p) {
+            eval::Data::Boolean(a) => a,
+            a => {
+                println!("BAD NEXPR{:#?}\n", a);
+                unimplemented!()
+            }
+        },
+        LogicExpr::DynamicCall(f, args) => match expr::dynamic_eval_and_call(c, f, args, p) {
+            eval::Data::Boolean(a) => a,
+            a => {
+                println!("BAD NEXPR{:#?}\n", a);
+                unimplemented!()
+            }
+        },
+        LogicExpr::Identifier(name) => match expr::var_lookup(name, p) {
+            eval::Data::Boolean(a) => a,
+            a => {
+                println!("BAD NEXPR{:#?}\n", a);
+                unimplemented!()
+            }
+        },
     }
 }
 
