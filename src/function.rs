@@ -55,12 +55,6 @@ pub fn resolve_lambdas(p1: eval::Program) -> eval::Program {
 fn resolve_lambdas_expr(function_names: FunctionNames, e: Expr) -> Expr {
     let org = e.clone();
     match e {
-        /*Expr::ADD(a, b) => {
-            return Expr::ADD(
-                Box::new(resolve_lambdas_expr(function_names.clone(), *a)),
-                Box::new(resolve_lambdas_expr(function_names, *b)),
-            )
-        }*/
         Expr::Call(id, body) => {
             if function_names.contains(&id) {
                 let b1: Vec<Expr> = body
@@ -128,6 +122,17 @@ fn resolve_lambdas_lexpr(function_names: FunctionNames, e: LogicExpr) -> LogicEx
             let l1 = resolve_lambdas_expr(function_names.clone(), *l);
             let r1 = resolve_lambdas_expr(function_names, *r);
             return LogicExpr::NEQ(Box::new(l1), Box::new(r1));
+        }
+        LogicExpr::Call(id, body) => {
+            if function_names.contains(&id) {
+                let b1: Vec<Expr> = body
+                    .iter()
+                    .map(|item| resolve_lambdas_expr(function_names.clone(), item.clone()))
+                    .collect();
+                return LogicExpr::Call(id, b1);
+            } else {
+                return LogicExpr::DynamicCall(id, body);
+            }
         }
         _ => {
             println!("{:#?}\n", e);

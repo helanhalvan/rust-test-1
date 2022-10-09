@@ -1,6 +1,6 @@
 use std::{borrow::Borrow, collections::HashMap};
 
-use crate::{expr, function::FunctionName, logic_expr, numeric_expr, program};
+use crate::{expr, function::FunctionName, logic_expr, numeric_expr, pattern_match, program};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Data {
@@ -64,13 +64,13 @@ fn bind_args(binds: Vec<program::Bind>, args: Vec<Data>) -> (ProgramState, Vec<p
     }
 }
 
-fn try_bind(pattern: Vec<program::ArgBind>, args: Vec<Data>) -> Option<ProgramState> {
+fn try_bind(pattern: Vec<pattern_match::ArgBind>, args: Vec<Data>) -> Option<ProgramState> {
     return try_bind_with_state(HashMap::new(), pattern, args);
 }
 
 pub fn try_bind_with_state(
     state: ProgramState,
-    pattern: Vec<program::ArgBind>,
+    pattern: Vec<pattern_match::ArgBind>,
     args: Vec<Data>,
 ) -> Option<ProgramState> {
     if pattern.len() != args.len() {
@@ -101,18 +101,18 @@ pub fn try_bind_with_state(
 
 fn try_bind_single(
     mut state: ProgramState,
-    pattern: program::ArgBind,
+    pattern: pattern_match::ArgBind,
     arg: Data,
 ) -> Option<ProgramState> {
     match (pattern.clone(), arg.clone()) {
-        (program::ArgBind::ConstPattern(c1), c2) => {
+        (pattern_match::ArgBind::ConstPattern(c1), c2) => {
             if c1 == c2 {
                 return Some(state);
             } else {
                 return None;
             }
         }
-        (program::ArgBind::Identifier(ph), _) => match state.get(&ph) {
+        (pattern_match::ArgBind::Identifier(ph), _) => match state.get(&ph) {
             None => {
                 state.insert(ph.to_vec(), arg);
                 return Some(state);
@@ -122,7 +122,7 @@ fn try_bind_single(
                 unimplemented!();
             }
         },
-        (program::ArgBind::ListPattern { head: ah, tail: at }, Data::List(dh, dt)) => {
+        (pattern_match::ArgBind::ListPattern { head: ah, tail: at }, Data::List(dh, dt)) => {
             let dh1 = *dh.clone();
             let ah1 = *ah.clone();
             if let Some(state1) = try_bind_single(state, ah1, dh1) {

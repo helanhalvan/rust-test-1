@@ -4,6 +4,7 @@ pub mod expr;
 pub mod function;
 pub mod logic_expr;
 pub mod numeric_expr;
+pub mod pattern_match;
 pub mod program;
 pub mod segments;
 pub mod tokens;
@@ -19,7 +20,7 @@ fn main() {
     // Groups of tokes for expressing a single case within the code base
     let clauses = segments::matched_terminators(tokens.clone());
     let clauses2 = segments::prune_clauses(clauses.clone());
-    println!("8{:#?}\n", (clauses2));
+    //println!("8{:#?}\n", (clauses2));
     let funs0 = program::to_funs(clauses2.clone());
     //println!("9{:#?}\n", (funs0));
     let funs = function::resolve_lambdas(funs0.clone());

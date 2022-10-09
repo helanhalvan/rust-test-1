@@ -136,7 +136,7 @@ fn tokens_to_call_level(tv: Vec<Token>) -> CallLevel {
             }
         },
         I if I > 2 => match (tv[0].clone(), tv[1].clone()) {
-            (Token::Identifier(l), token) => {
+            (Token::Identifier(l), token) if is_operator_token(token.clone()) => {
                 let mut first = Vec::new();
                 first.push(CallLevel::Identifier(l));
                 return int_oplevel_to_oplevel(build_level_int(
@@ -159,7 +159,13 @@ fn tokens_to_call_level(tv: Vec<Token>) -> CallLevel {
 
 // 1 + 2 + 3 + 4 ... etc
 fn build_level_int(tv: Vec<Token>, leveltoken: Token, mut done: Vec<CallLevel>) -> IntOpLevel {
-    assert!(tokens::is_operator_token(leveltoken.clone()));
+    assert!(
+        tokens::is_operator_token(leveltoken.clone()),
+        "{:#?}{:#?}{:#?}",
+        tv,
+        leveltoken,
+        done
+    );
     match tv.len() {
         1 => match tv[0].clone() {
             Token::Identifier(l) => {
@@ -175,7 +181,7 @@ fn build_level_int(tv: Vec<Token>, leveltoken: Token, mut done: Vec<CallLevel>) 
             }
         },
         I if I > 2 => match (tv[0].clone(), tv[1].clone()) {
-            (Token::Identifier(l), leveltoken) => {
+            (Token::Identifier(l), leveltoken) if is_operator_token(leveltoken.clone()) => {
                 done.push(CallLevel::Identifier(l));
                 build_level_int(tv[2..tv.len()].to_vec(), leveltoken, done)
             }

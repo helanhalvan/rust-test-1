@@ -14,6 +14,7 @@ pub enum LogicExpr {
     EQ(Vec<expr::Expr>),
     NEQ(Box<expr::Expr>, Box<expr::Expr>),
     Call(Vec<char>, Vec<Expr>),
+    DynamicCall(Vec<char>, Vec<Expr>),
 }
 
 pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {

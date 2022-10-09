@@ -9,6 +9,7 @@ use crate::{
 pub enum NumericExpr {
     Identifier(Vec<char>),
     Call(Vec<char>, Vec<expr::Expr>),
+    DynamicCall(Vec<char>, Vec<expr::Expr>),
     Const(NumericData),
     ArrayOperator {
         op: ArrayNumOp,
@@ -82,6 +83,13 @@ pub fn eval_int(c: eval::Program, p: eval::ProgramState, expr: NumericExpr) -> N
                 }
             }
         }
+        NumericExpr::Call(f, args) => match expr::eval_and_call(c, f, args, p) {
+            eval::Data::Number(a) => a,
+            a => {
+                println!("BAD NEXPR{:#?}\n", a);
+                unimplemented!()
+            }
+        },
         _ => {
             println!("BAD NEXPR{:#?}\n", expr);
             unimplemented!()

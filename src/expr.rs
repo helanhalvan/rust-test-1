@@ -3,10 +3,9 @@ use std::iter::FromIterator;
 use crate::eval::{self, Data, ProgramState};
 use crate::logic_expr::{self, LogicExpr};
 use crate::numeric_expr::{NumericData, NumericExpr};
-use crate::program::ArgBind;
 use crate::segments::{self, Segment};
 use crate::tokens::{self, Token};
-use crate::{call_levels, function, numeric_expr, program};
+use crate::{call_levels, function, numeric_expr, pattern_match, program};
 
 //Un-typed Expressions
 #[derive(Debug, Clone)]
@@ -15,11 +14,11 @@ pub enum Expr {
     Constant(eval::Data),
     Call(Vec<char>, Vec<Expr>),
     DynamicCall(Vec<char>, Vec<Expr>),
-    ListBuild(Box<Expr>, Box<Expr>),
+    ListBuild(Box<Expr>, Box<Expr>), // Do we need this to be a [|] cell?
     NumericExpr(numeric_expr::NumericExpr),
     LogicExpr(LogicExpr),
     Assign {
-        pattern: Box<ArgBind>,
+        pattern: Box<pattern_match::ArgBind>,
         arg: Box<Expr>,
         rest: Box<Expr>,
     },
@@ -76,7 +75,7 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
     }
 }
 
-fn eval_and_call(
+pub fn eval_and_call(
     c: eval::Program,
     f: function::FunctionName,
     args: Vec<Expr>,
@@ -89,7 +88,7 @@ fn eval_and_call(
     return eval::call(c, f, args1);
 }
 
-pub fn segments_to_expr(mut s: Vec<segments::Segment>) -> Expr {
+pub fn segments_to_expr(s: Vec<segments::Segment>) -> Expr {
     let res = call_levels::segments_to_call_level(s.clone());
     return call_levels_to_expr(res);
 }
@@ -121,19 +120,44 @@ pub fn call_levels_to_expr(level: call_levels::CallLevel) -> Expr {
             return Expr::Call(fname, subs);
         }
         call_levels::CallLevel::Assign { left, right, rest } => {
-            /*let left1 = call_levels_to_expr(left);
-            let right1 = call_levels_to_expr(right);
-            let rest1 = call_levels_to_expr(rest);
+            let left1 = pattern_match::call_level_to_argbind(*left);
+            let right1 = call_levels_to_expr(*right);
+            let rest1 = call_levels_to_expr(*rest);
             return Expr::Assign {
                 pattern: Box::new(left1),
                 arg: Box::new(right1),
                 rest: Box::new(rest1),
-            };*/
-            println!("call_levels_to_expr {:#?}\n", level);
-            unimplemented!()
+            };
+        }
+        call_levels::CallLevel::ListBuild(sublevels) => {
+            let subs: Vec<_> = sublevels
+                .into_iter()
+                .map(|x| call_levels_to_expr(x))
+                .collect();
+            return expr_vec_to_list(&subs);
         }
         _ => {
             println!("call_levels_to_expr {:#?}\n", level);
+            unimplemented!()
+        }
+    }
+}
+
+fn expr_vec_to_list(v: &[Expr]) -> Expr {
+    println!("listbuild {:#?}\n", v);
+    match (v.get(0), v.get(1)) {
+        (Some(x), Some(_)) => {
+            println!("listbuild {:#?}\n", x);
+            return Expr::ListBuild(
+                Box::new(x.clone()),
+                Box::new(expr_vec_to_list(&v[1..v.len()])),
+            );
+        }
+        (Some(x), None) => {
+            return x.clone();
+        }
+        (None, _) => {
+            println!("call_levels_to_expr {:#?}\n", v);
             unimplemented!()
         }
     }
