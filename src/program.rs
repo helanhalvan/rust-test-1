@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     eval, expr, logic_expr,
-    segments::{self, Clause, Segment},
+    segments::{self, Segment},
     tokens,
 };
 
@@ -50,11 +50,11 @@ fn funs_int(
     match (clauses[0].clone(), clauses[1].clone()) {
         (
             segments::Segment::UnMatched(i), // [tokens::Token::Identifier(i)]
-            segments::Segment::Clause(Clause {
+            segments::Segment::Clause {
                 head: tokens::Token::FunStart,
                 body: b,
                 ..
-            }),
+            },
         ) => match i[0].clone() {
             tokens::Token::Identifier(n) => {
                 let rest = clauses[2..clauses.len()].to_vec();
@@ -77,11 +77,11 @@ fn segments_to_binds(binds: Vec<segments::Segment>) -> Vec<Bind> {
         return Vec::new();
     }
     match binds[0].clone() {
-        segments::Segment::Clause(Clause {
+        segments::Segment::Clause {
             head: tokens::Token::LeftP,
             body: bindbody,
             ..
-        }) => {
+        } => {
             let rest = binds[1..binds.len()].to_vec();
             let (filters, rest) = segments_to_filters(rest);
             let mut obind = segments_to_binds(rest);
@@ -137,11 +137,11 @@ fn single_seg_to_bind(seg: Segment) -> Vec<ArgBind> {
         segments::Segment::UnMatched(i) => return bind_tokens_to_bindpattern(i),
         // []
         // [H|T], etc
-        segments::Segment::Clause(Clause {
+        segments::Segment::Clause {
             head: tokens::Token::LeftB,
             body: i,
             ..
-        }) => {
+        } => {
             if i.len() == 0 {
                 let mut res = Vec::new();
                 res.push(ArgBind::ConstPattern(eval::Data::Emptylist));
@@ -230,11 +230,11 @@ fn segments_to_filters(s: Vec<segments::Segment>) -> (Vec<Filter>, Vec<Segment>)
         return (Vec::new(), s);
     } else if s.len() == 1 {
         match s[0].clone() {
-            segments::Segment::Clause(Clause {
+            segments::Segment::Clause {
                 head: tokens::Token::CodeStart,
                 body: codebody,
                 ..
-            }) => {
+            } => {
                 let cfilter = Filter {
                     head: logic_expr::LogicExpr::True,
                     code: expr::segments_to_expr(codebody),
@@ -251,16 +251,16 @@ fn segments_to_filters(s: Vec<segments::Segment>) -> (Vec<Filter>, Vec<Segment>)
     }
     match (s[0].clone(), s[1].clone()) {
         (
-            segments::Segment::Clause(Clause {
+            segments::Segment::Clause {
                 head: tokens::Token::LeftW,
                 body: filterbody,
                 ..
-            }),
-            segments::Segment::Clause(Clause {
+            },
+            segments::Segment::Clause {
                 head: tokens::Token::CodeStart,
                 body: codebody,
                 ..
-            }),
+            },
         ) => {
             let rest = s[2..s.len()].to_vec();
             let (mut otherfilters, finalrest) = segments_to_filters(rest);
@@ -273,11 +273,11 @@ fn segments_to_filters(s: Vec<segments::Segment>) -> (Vec<Filter>, Vec<Segment>)
             return (otherfilters, finalrest);
         }
         (
-            segments::Segment::Clause(Clause {
+            segments::Segment::Clause {
                 head: tokens::Token::CodeStart,
                 body: codebody,
                 ..
-            }),
+            },
             _,
         ) => {
             let rest = s[1..s.len()].to_vec();

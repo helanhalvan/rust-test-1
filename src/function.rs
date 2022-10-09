@@ -55,12 +55,12 @@ pub fn resolve_lambdas(p1: eval::Program) -> eval::Program {
 fn resolve_lambdas_expr(function_names: FunctionNames, e: Expr) -> Expr {
     let org = e.clone();
     match e {
-        Expr::ADD(a, b) => {
+        /*Expr::ADD(a, b) => {
             return Expr::ADD(
                 Box::new(resolve_lambdas_expr(function_names.clone(), *a)),
                 Box::new(resolve_lambdas_expr(function_names, *b)),
             )
-        }
+        }*/
         Expr::Call(id, body) => {
             if function_names.contains(&id) {
                 let b1: Vec<Expr> = body
@@ -114,15 +114,15 @@ fn resolve_lambdas_lexpr(function_names: FunctionNames, e: LogicExpr) -> LogicEx
     match e {
         LogicExpr::True => org,
         LogicExpr::False => org,
-        LogicExpr::AND(l, r) => {
-            let l1 = resolve_lambdas_lexpr(function_names.clone(), *l);
-            let r1 = resolve_lambdas_lexpr(function_names, *r);
-            return LogicExpr::AND(Box::new(l1), Box::new(r1));
+        LogicExpr::AND(v) => {
+            //let l1 = resolve_lambdas_lexpr(function_names.clone(), *l);
+            //let r1 = resolve_lambdas_lexpr(function_names, *r);
+            return LogicExpr::AND(v);
         }
-        LogicExpr::EQ(l, r) => {
-            let l1 = resolve_lambdas_expr(function_names.clone(), *l);
-            let r1 = resolve_lambdas_expr(function_names, *r);
-            return LogicExpr::EQ(Box::new(l1), Box::new(r1));
+        LogicExpr::EQ(v) => {
+            //let l1 = resolve_lambdas_expr(function_names.clone(), *l);
+            //let r1 = resolve_lambdas_expr(function_names, *r);
+            return LogicExpr::EQ(v);
         }
         LogicExpr::NEQ(l, r) => {
             let l1 = resolve_lambdas_expr(function_names.clone(), *l);

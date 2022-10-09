@@ -1,16 +1,19 @@
+use crate::call_levels;
 use crate::eval::{self, ProgramState};
 use crate::expr::{self, Expr};
-use crate::segments::{self, Clause, Segment};
+use crate::segments::{self, Segment};
 use crate::tokens::{self, Token};
+use itertools::Itertools;
 
 #[derive(Debug, Clone)]
 pub enum LogicExpr {
     True,
     False,
     Identifier(Vec<char>),
-    AND(Box<LogicExpr>, Box<LogicExpr>),
-    EQ(Box<expr::Expr>, Box<expr::Expr>),
+    AND(Vec<LogicExpr>),
+    EQ(Vec<expr::Expr>),
     NEQ(Box<expr::Expr>, Box<expr::Expr>),
+    Call(Vec<char>, Vec<Expr>),
 }
 
 pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
@@ -22,15 +25,19 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
             let r1 = expr::eval(c, p, *r);
             l1 != r1
         }
-        LogicExpr::EQ(l, r) => {
-            let l1 = expr::eval(c.clone(), p.clone(), *l);
-            let r1 = expr::eval(c, p, *r);
-            l1 == r1
+        LogicExpr::EQ(v) => {
+            let res = v
+                .into_iter()
+                .map(|x| expr::eval(c.clone(), p.clone(), x))
+                .all_equal();
+            res
         }
-        LogicExpr::AND(l, r) => {
-            let l1 = eval(c.clone(), p.clone(), *l);
-            let r1 = eval(c, p, *r);
-            l1 && r1
+        LogicExpr::AND(v) => {
+            let res = v
+                .into_iter()
+                .map(|x| eval(c.clone(), p.clone(), x))
+                .all(|x| x);
+            res
         }
         _ => {
             println!("logic_expr{:#?}{:#?}\n", p, expr);
@@ -40,117 +47,49 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
 }
 
 pub fn segments_to_logical_expr(s: Vec<segments::Segment>) -> LogicExpr {
-    if s.len() == 1 {
-        match s[0].clone() {
-            segments::Segment::UnMatched(tv) => return tokens_to_logical_expr(tv.clone()),
-            _ => {
-                println!("ALONE{:#?}\n", s[0]);
-                unimplemented!()
-            }
-        }
-    }
-    if s.len() == 2 {
-        match (s[0].clone(), s[1].clone()) {
-            (
-                segments::Segment::Clause(Clause {
-                    head: Token::LeftP,
-                    body: leftbody,
-                    ..
-                }),
-                segments::Segment::UnMatched(list),
-            ) => {
-                if list.len() == 2 {
-                    match (list[0].clone(), list[1].clone()) {
-                        (Token::Eq, Token::Identifier(chars)) => {
-                            let left_expr = expr::segments_to_expr(leftbody);
-                            let right_expr = expr::string_token_to_expr(chars);
-                            return LogicExpr::EQ(Box::new(left_expr), Box::new(right_expr));
-                        }
-                        _ => {
-                            println!("2 SEG{:#?}\n", s);
-                            unimplemented!()
-                        }
-                    }
-                }
-                println!("2 SEG{:#?}\n", s);
-                unimplemented!()
-            }
-            _ => {
-                println!("2 SEG{:#?}\n", s);
-                unimplemented!()
-            }
-        }
-    }
-    if s.len() == 3 {
-        match (s[0].clone(), s[1].clone(), s[2].clone()) {
-            (
-                segments::Segment::Clause(Clause {
-                    head: tokens::Token::LeftP,
-                    body: sv,
-                    ..
-                }),
-                segments::Segment::UnMatched(um),
-                segments::Segment::Clause(Clause {
-                    head: tokens::Token::LeftP,
-                    body: sv2,
-                    ..
-                }),
-            ) => {
-                if um.len() == 1 {
-                    match um[0] {
-                        Token::AND => {
-                            let left = segments_to_logical_expr(sv.clone());
-                            let right = segments_to_logical_expr(sv2.to_vec());
-                            return LogicExpr::AND(Box::new(left), Box::new(right));
-                        }
-                        _ => {
-                            println!("{:#?}\n", s);
-                            unimplemented!()
-                        }
-                    }
-                } else {
-                    println!("{:#?}\n", s);
-                    unimplemented!()
-                }
-            }
-            bad => {
-                println!("{:#?}{:#?}\n", s, bad);
-                unimplemented!()
-            }
-        }
-    }
-    // TODO handle longer logic expr like
-    // a && b && c && d
-    // not sure what () rules will be needed
-    println!("{:#?}\n", s);
-    unimplemented!()
+    let res = call_levels::segments_to_call_level(s.clone());
+    return call_levels_to_logic_expr(res);
 }
 
-fn tokens_to_logical_expr(tv: Vec<Token>) -> LogicExpr {
-    match tv.len() {
-        1 => {
-            println!("1{:#?}\n", tv);
-            unimplemented!()
-        }
-        3 => match (tv[0].clone(), tv[1].clone(), tv[2].clone()) {
-            (Token::Identifier(l), Token::Eq, Token::Identifier(r)) => {
-                let l1 = expr::string_token_to_expr(l);
-                let r1 = expr::string_token_to_expr(r);
-                return LogicExpr::EQ(Box::new(l1), Box::new(r1));
+pub fn call_levels_to_logic_expr(level: call_levels::CallLevel) -> LogicExpr {
+    match level.clone() {
+        call_levels::CallLevel::OpLevel(token, sublevels) => match token {
+            Token::Eq => {
+                let subs = sublevels
+                    .into_iter()
+                    .map(|x| expr::call_levels_to_expr(x))
+                    .collect();
+                return LogicExpr::EQ(subs);
             }
-            (Token::Identifier(l), Token::NEQ, Token::Identifier(r)) => {
-                let l1 = expr::string_token_to_expr(l);
-                let r1 = expr::string_token_to_expr(r);
-                return LogicExpr::NEQ(Box::new(l1), Box::new(r1));
-            }
-            _ => {
-                println!("3{:#?}\n", tv);
+            t => {
+                println!("call_levels_to_expr {:#?}{:#?}\n", level, t);
                 unimplemented!()
             }
         },
+        call_levels::CallLevel::Identifier(v) => return string_token_to_logic_expr(v),
+        call_levels::CallLevel::Call(fname, sublevels) => {
+            let subs = sublevels
+                .into_iter()
+                .map(|x| expr::call_levels_to_expr(x))
+                .collect();
+            return LogicExpr::Call(fname, subs);
+        }
         _ => {
-            println!("{:#?}\n", tv);
+            println!("call_levels_to_expr {:#?}\n", level);
             unimplemented!()
         }
+    }
+}
+
+pub fn string_token_to_logic_expr(chars: Vec<char>) -> LogicExpr {
+    let text = String::from_iter(chars.iter());
+    if let Ok(n) = text.parse::<bool>() {
+        if n {
+            return LogicExpr::True;
+        } else {
+            return LogicExpr::False;
+        };
+    } else {
+        return LogicExpr::Identifier(chars);
     }
 }

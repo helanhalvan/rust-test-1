@@ -5,31 +5,28 @@ pub enum MyError {
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Token {
+    AND,
     Add,
-    Eq,
-    LeftP,
-    RightP,
-    LeftB,
-    RightB,
-    LeftW,
-    RightW,
-    CommentStart,
-    CommentEnd,
-    CodeStart,
-    CodeEnd,
-    FunStart,
-    ClauseTerm,
-    FunTerm,
     ArgTerm,
+    Assign,
+    CodeEnd,
+    CodeStart,
+    CommentEnd,
+    CommentStart,
+    END,
+    Eq,
+    FunStart,
     Identifier(Vec<char>),
-    ArrowRight,
+    LeftB,
+    LeftP,
+    LeftW,
+    MUL,
     NEQ,
     Pipe,
-    AND,
-    END,
-    MUL,
+    RightB,
+    RightP,
+    RightW,
     SUB,
-    Assign,
 }
 // mapping left pair -> right pair
 // ( -> )
@@ -44,6 +41,13 @@ pub fn has_pair(t: Token) -> Option<Token> {
         _ => return None,
     };
     return Some(p);
+}
+
+pub fn is_operator_token(t: Token) -> bool {
+    match t {
+        Token::Add | Token::Eq | Token::NEQ | Token::AND | Token::MUL | Token::SUB => true,
+        _ => false,
+    }
 }
 
 pub fn string_to(s: String) -> Vec<Token> {
@@ -90,8 +94,6 @@ fn single_char_to_token(char: char) -> Option<(Token, u16)> {
         ']' => Token::RightB,
         '{' => Token::LeftW,
         '}' => Token::RightW,
-        ';' => Token::ClauseTerm,
-        '.' => Token::FunTerm,
         ',' => Token::ArgTerm,
         '|' => Token::Pipe,
         '/' => Token::CodeStart,
@@ -109,7 +111,6 @@ fn single_char_to_token(char: char) -> Option<(Token, u16)> {
 
 fn two_chars_to_token(a: char, b: char) -> Option<(Token, u16)> {
     let ret: Token = match (a, b) {
-        ('-', '>') => Token::ArrowRight,
         ('/', '*') => Token::CommentStart,
         ('*', '/') => Token::CommentEnd,
         ('&', '&') => Token::AND,

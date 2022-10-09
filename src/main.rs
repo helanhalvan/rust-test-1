@@ -1,3 +1,4 @@
+pub mod call_levels;
 pub mod eval;
 pub mod expr;
 pub mod function;
@@ -9,7 +10,7 @@ pub mod tokens;
 
 use std::{collections::HashMap, fs, println};
 
-use segments::{Clause, Segment}; //, vec
+use segments::Segment;
 
 fn main() {
     let c = fs::read_to_string("./program.txt").expect("Cant read file");
