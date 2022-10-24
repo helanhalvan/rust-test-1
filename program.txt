@@ -27,7 +27,7 @@ main:
     / 
     A = mathfun(2, 5)
     B = logicfun(true, false)
-    _ = rust::log(1,1)
+    _ = rust::log(1)
     [A|B]
     \ 
 end

@@ -75,6 +75,7 @@ pub fn segments_to_call_level(
                                 Some(Token::Identifier(id)) => {
                                     match (id.get(0), id.get(1), id.get(2), id.get(3), id.get(4)) {
                                         (Some('r'), Some('u'), Some('s'), Some('t'), None) => {
+                                            //TODO need to handle assign properly here
                                             return make_rust_fun(fname.clone(), body);
                                         }
                                         token => {

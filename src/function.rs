@@ -7,8 +7,6 @@ use crate::{
     program::{self, Fun},
 };
 
-type FunctionNames = HashSet<Vec<char>>;
-
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum FunctionName {
     Static(Vec<char>),
@@ -43,8 +41,21 @@ pub fn call(
                 unimplemented!();
             }
         },
-        FunctionName::Rust(_key) => {
-            unimplemented!(); // TODO call rust code here
+        FunctionName::Rust(key) => {
+            return rust_call(key, args);
+        }
+    }
+}
+
+fn rust_call(name: Vec<char>, args: Vec<eval::Data>) -> eval::Data {
+    match (name.get(0), name.get(1), name.get(2), name.get(3)) {
+        (Some('l'), Some('o'), Some('g'), None) => {
+            println!("LANGLOG{:#?}\n", args);
+            return eval::Data::Emptylist;
+        }
+        bad => {
+            println!("No Pattern:{:#?}{:#?}{:#?}\n", name, args, bad);
+            unimplemented!();
         }
     }
 }
