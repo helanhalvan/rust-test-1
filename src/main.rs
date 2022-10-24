@@ -22,9 +22,16 @@ fn main() {
     let clauses2 = segments::prune_clauses(clauses.clone());
     //println!("8{:#?}\n", (clauses2));
     let funs0 = program::to_funs(clauses2.clone());
-    //println!("9{:#?}\n", (funs0));
-    let funs = function::resolve_lambdas(funs0.clone());
-    let res = eval::call(funs, "main".chars().collect(), Vec::new());
+    println!("9{:#?}\n", (funs0));
+    let funs1 = program::to_program(funs0.clone());
+    println!("10{:#?}\n", (funs1));
+    //let funs = function::resolve_lambdas(funs0.clone());
+    let res = function::call(
+        funs1,
+        HashMap::new(),
+        function::FunctionName::Static("main".chars().collect()),
+        Vec::new(),
+    );
     println!("DONE:{:#?}\n", res);
 }
 

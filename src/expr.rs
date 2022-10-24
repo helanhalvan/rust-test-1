@@ -12,8 +12,7 @@ use crate::{call_levels, function, numeric_expr, pattern_match, program};
 pub enum Expr {
     Identifier(Vec<char>),
     Constant(eval::Data),
-    Call(Vec<char>, Vec<Expr>),
-    DynamicCall(Vec<char>, Vec<Expr>),
+    Call(function::FunctionName, Vec<Expr>),
     ListBuild(Box<Expr>, Box<Expr>), // Do we need this to be a [|] cell?
     NumericExpr(numeric_expr::NumericExpr),
     LogicExpr(LogicExpr),
@@ -36,7 +35,6 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: Expr) -> eval::Data {
             let t1 = eval(c.clone(), p.clone(), *t);
             return eval::Data::List(Box::new(h1), Box::new(t1));
         }
-        Expr::DynamicCall(name, args) => dynamic_eval_and_call(c, name, args, p),
         Expr::NumericExpr(nexpr) => {
             println!("NEXPR{:#?}\n", nexpr);
             return numeric_expr::eval(c, p, nexpr);
@@ -94,12 +92,7 @@ pub fn eval_and_call(
         .into_iter()
         .map(|arg| eval(c.clone(), p.clone(), arg))
         .collect();
-    return eval::call(c, f, args1);
-}
-
-pub fn segments_to_expr(s: Vec<segments::Segment>) -> Expr {
-    let res = call_levels::segments_to_call_level(s.clone());
-    return call_levels_to_expr(res);
+    return function::call(c, p, f, args1);
 }
 
 pub fn call_levels_to_expr(level: call_levels::CallLevel) -> Expr {

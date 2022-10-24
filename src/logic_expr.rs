@@ -1,8 +1,8 @@
-use crate::call_levels;
 use crate::eval::{self, ProgramState};
 use crate::expr::{self, Expr};
 use crate::segments::{self, Segment};
 use crate::tokens::{self, Token};
+use crate::{call_levels, function, program};
 use itertools::Itertools;
 
 #[derive(Debug, Clone)]
@@ -11,10 +11,9 @@ pub enum LogicExpr {
     False,
     Identifier(Vec<char>),
     AND(Vec<LogicExpr>),
-    EQ(Vec<expr::Expr>),
-    NEQ(Box<expr::Expr>, Box<expr::Expr>),
-    Call(Vec<char>, Vec<Expr>),
-    DynamicCall(Vec<char>, Vec<Expr>),
+    EQ(Vec<expr::Expr>),                   // A == B == C -> EQ(A,B,C)
+    NEQ(Box<expr::Expr>, Box<expr::Expr>), //change to array version? A != B != C -> A != B && B != C
+    Call(function::FunctionName, Vec<Expr>),
 }
 
 pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
@@ -47,13 +46,6 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
                 unimplemented!()
             }
         },
-        LogicExpr::DynamicCall(f, args) => match expr::dynamic_eval_and_call(c, f, args, p) {
-            eval::Data::Boolean(a) => a,
-            a => {
-                println!("BAD NEXPR{:#?}\n", a);
-                unimplemented!()
-            }
-        },
         LogicExpr::Identifier(name) => match expr::var_lookup(name, p) {
             eval::Data::Boolean(a) => a,
             a => {
@@ -62,11 +54,6 @@ pub fn eval(c: eval::Program, p: eval::ProgramState, expr: LogicExpr) -> bool {
             }
         },
     }
-}
-
-pub fn segments_to_logical_expr(s: Vec<segments::Segment>) -> LogicExpr {
-    let res = call_levels::segments_to_call_level(s.clone());
-    return call_levels_to_logic_expr(res);
 }
 
 pub fn call_levels_to_logic_expr(level: call_levels::CallLevel) -> LogicExpr {

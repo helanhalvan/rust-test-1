@@ -27,6 +27,7 @@ pub enum Token {
     RightP,
     RightW,
     SUB,
+    Qualify,
 }
 // mapping left pair -> right pair
 // ( -> )
@@ -115,6 +116,7 @@ fn two_chars_to_token(a: char, b: char) -> Option<(Token, u16)> {
         ('*', '/') => Token::CommentEnd,
         ('&', '&') => Token::AND,
         ('=', '=') => Token::Eq,
+        (':', ':') => Token::Qualify,
         _ => return single_char_to_token(a),
     };
     return Some((ret, 2));

@@ -1,15 +1,14 @@
 use crate::{
     call_levels,
     eval::{self, Data},
-    expr,
+    expr, function,
     tokens::Token,
 };
 
 #[derive(Debug, Clone)]
 pub enum NumericExpr {
     Identifier(Vec<char>),
-    Call(Vec<char>, Vec<expr::Expr>),
-    DynamicCall(Vec<char>, Vec<expr::Expr>),
+    Call(function::FunctionName, Vec<expr::Expr>),
     Const(NumericData),
     ArrayOperator {
         op: ArrayNumOp,
@@ -83,13 +82,6 @@ pub fn eval_int(c: eval::Program, p: eval::ProgramState, expr: NumericExpr) -> N
             }
         }
         NumericExpr::Call(f, args) => match expr::eval_and_call(c, f, args, p) {
-            eval::Data::Number(a) => a,
-            a => {
-                println!("BAD NEXPR{:#?}\n", a);
-                unimplemented!()
-            }
-        },
-        NumericExpr::DynamicCall(f, args) => match expr::dynamic_eval_and_call(c, f, args, p) {
             eval::Data::Number(a) => a,
             a => {
                 println!("BAD NEXPR{:#?}\n", a);

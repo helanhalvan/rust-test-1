@@ -1,14 +1,15 @@
 use crate::{
+    function, program,
     segments::{self, Segment},
     tokens::{self, is_operator_token, Token},
 };
 
-use std::collections::VecDeque;
+use std::{borrow::Borrow, collections::VecDeque};
 
 #[derive(Debug, Clone)]
 pub enum CallLevel {
     // f(a,b,c) -> Call(f, [a,b,c])
-    Call(Vec<char>, Vec<CallLevel>),
+    Call(function::FunctionName, Vec<CallLevel>),
     // a + b + c -> level(+, [a,b,c])
     OpLevel(tokens::Token, Vec<CallLevel>),
     // a = 5 a + 1 -> Assign(a, 5, a + 1)
@@ -29,7 +30,10 @@ struct IntOpLevel {
     pub v: Vec<CallLevel>,
 }
 
-pub fn segments_to_call_level(mut s: Vec<segments::Segment>) -> CallLevel {
+pub fn segments_to_call_level(
+    mut s: Vec<segments::Segment>,
+    context: program::Functions,
+) -> CallLevel {
     match s.len() {
         1 => segment_to_call_level(s[0].clone()),
         i if i > 1 => match (s[0].clone(), s[1].clone()) {
@@ -44,7 +48,7 @@ pub fn segments_to_call_level(mut s: Vec<segments::Segment>) -> CallLevel {
                 match v.pop() {
                     // 1 + f(a,b) etc
                     Some(tokens::Token::Identifier(fname)) => {
-                        let fun = make_fun(fname.clone(), body);
+                        let fun = make_fun(fname.clone(), body.clone(), context.clone());
                         match v.pop() {
                             Some(optoken) if is_operator_token(optoken.clone()) => {
                                 let IntOpLevel {
@@ -59,13 +63,41 @@ pub fn segments_to_call_level(mut s: Vec<segments::Segment>) -> CallLevel {
                             }
                             Some(tokens::Token::Assign) => {
                                 let left = tokens_to_call_level(v);
-                                let rest = segments_to_call_level(s[2..s.len()].to_vec());
+                                let rest =
+                                    segments_to_call_level(s[2..s.len()].to_vec(), context.clone());
                                 return CallLevel::Assign {
                                     left: Box::new(left),
                                     right: Box::new(fun),
                                     rest: Box::new(rest),
                                 };
                             }
+                            Some(Token::Qualify) => match v.pop() {
+                                Some(Token::Identifier(id)) => {
+                                    match (id.get(0), id.get(1), id.get(2), id.get(3), id.get(4)) {
+                                        (Some('r'), Some('u'), Some('s'), Some('t'), None) => {
+                                            return make_rust_fun(fname.clone(), body);
+                                        }
+                                        token => {
+                                            println!(
+                                                "SEG LEN CONFUSION{:#?}{:#?}{:#?}\n",
+                                                s,
+                                                s.len(),
+                                                token
+                                            );
+                                            unimplemented!()
+                                        }
+                                    }
+                                }
+                                token => {
+                                    println!(
+                                        "SEG LEN CONFUSION{:#?}{:#?}{:#?}\n",
+                                        s,
+                                        s.len(),
+                                        token
+                                    );
+                                    unimplemented!()
+                                }
+                            },
                             token => {
                                 println!("SEG LEN CONFUSION{:#?}{:#?}{:#?}\n", s, s.len(), token);
                                 unimplemented!()
@@ -87,7 +119,7 @@ pub fn segments_to_call_level(mut s: Vec<segments::Segment>) -> CallLevel {
                 segments::Segment::UnMatched(mut tv),
             ) => match tv.get(0) {
                 Some(optoken) if is_operator_token(optoken.clone()) => {
-                    let firstsub = segments_to_call_level(body);
+                    let firstsub = segments_to_call_level(body, context);
                     return int_oplevel_to_oplevel(build_level_int(
                         tv[1..tv.len()].to_vec(),
                         optoken.clone(),
@@ -248,9 +280,22 @@ fn tokens_to_list(mut tv: Vec<Token>) -> CallLevel {
     unimplemented!()
 }
 
-fn make_fun(fname: Vec<char>, args: Vec<segments::Segment>) -> CallLevel {
+fn make_fun(
+    fname: Vec<char>,
+    args: Vec<segments::Segment>,
+    context: program::Functions,
+) -> CallLevel {
     let args = segments_to_call_args(args);
-    return CallLevel::Call(fname, args);
+    if context.contains_key(&fname) {
+        return CallLevel::Call(function::FunctionName::Static(fname), args);
+    } else {
+        return CallLevel::Call(function::FunctionName::Dynamic(fname), args);
+    }
+}
+
+fn make_rust_fun(fname: Vec<char>, args: Vec<segments::Segment>) -> CallLevel {
+    let args = segments_to_call_args(args);
+    return CallLevel::Call(function::FunctionName::Rust(fname), args);
 }
 
 fn segments_to_call_args(mut seg: Vec<segments::Segment>) -> Vec<CallLevel> {

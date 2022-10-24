@@ -1,6 +1,10 @@
 use std::{borrow::Borrow, collections::HashMap};
 
-use crate::{expr, function::FunctionName, logic_expr, numeric_expr, pattern_match, program};
+use crate::{
+    expr,
+    function::{self, FunctionName},
+    logic_expr, numeric_expr, pattern_match, program,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Data {
@@ -11,23 +15,15 @@ pub enum Data {
     FunctionPointer(FunctionName),
 }
 
-pub type Program = HashMap<Vec<char>, program::Fun>;
+pub type Program = HashMap<function::FunctionName, program::Fun>;
 pub type ProgramState = HashMap<Vec<char>, Data>;
 
-pub fn call(code: Program, function: Vec<char>, args: Vec<Data>) -> Data {
-    match code.get(&function) {
-        Some(program::Fun { binds, .. }) => {
-            let (state0, filters) = bind_args(binds.clone(), args.clone());
-            let body = get_callpath(code.clone(), state0.clone(), filters.clone());
-            let res = expr::eval(code, state0.clone(), body.clone());
-            //println!("B{:#?}{:#?}{:#?}{:#?}\n", body, state0, filters, res);
-            return res;
-        }
-        None => {
-            println!("No Function:{:#?}{:#?}{:#?}\n", code, function, args);
-            unimplemented!();
-        }
-    }
+pub fn call(code: Program, program::Fun { binds, .. }: program::Fun, args: Vec<Data>) -> Data {
+    let (state0, filters) = bind_args(binds.clone(), args.clone());
+    let body = get_callpath(code.clone(), state0.clone(), filters.clone());
+    let res = expr::eval(code, state0.clone(), body.clone());
+    //println!("B{:#?}{:#?}{:#?}{:#?}\n", body, state0, filters, res);
+    return res;
 }
 
 fn get_callpath(c: Program, p: ProgramState, fv: Vec<program::Filter>) -> expr::Expr {
